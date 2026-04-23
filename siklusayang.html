@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SikluSayang — Kalender Kesuburan</title>
+<meta name="description" content="Pelacak siklus menstruasi dengan metode kalender Ogino-Knaus. Bekerja offline.">
+<meta name="theme-color" content="#DB2777">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SikluSayang">
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%23DB2777'/><g transform='translate(256 256)' fill='%23FBCFE8'><ellipse rx='52' ry='90' cy='-92'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(72)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(144)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(216)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(288)'/><circle r='42' fill='%23FFFFFF'/></g></svg>">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%23DB2777'/><g transform='translate(256 256)' fill='%23FBCFE8'><ellipse rx='52' ry='90' cy='-92'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(72)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(144)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(216)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(288)'/><circle r='42' fill='%23FFFFFF'/></g></svg>">
+<link rel="manifest" id="manifest-link">
+<meta name="samsung-internet-web-app-capable" content="yes">
+<meta name="samsung-internet-web-app-title" content="SikluSayang">
+<style>
+:root{
+  --bg:#FDF2F8;
+  --bg-soft:#FCE7F3;
+  --card:#FFFFFF;
+  --primary:#DB2777;
+  --primary-dark:#9D174D;
+  --primary-light:#FBCFE8;
+  --primary-faint:#FDF2F8;
+  --text:#1F1235;
+  --text-muted:#6B5871;
+  --border:#F5D8E5;
+  --border-soft:#FCE7F3;
+  --period:#E11D48;
+  --period-bg:#FFE4E6;
+  --fertile:#EA580C;
+  --fertile-bg:#FFEDD5;
+  --safe:#059669;
+  --safe-bg:#D1FAE5;
+  --predicted:#2563EB;
+  --predicted-bg:#DBEAFE;
+  --unknown:#9CA3AF;
+  --unknown-bg:#F3F4F6;
+  --warning:#D97706;
+  --warning-bg:#FEF3C7;
+  --warning-border:#FCD34D;
+  --danger:#DC2626;
+  --danger-bg:#FEE2E2;
+  --shadow-sm:0 1px 2px rgba(155,40,90,0.06);
+  --shadow:0 2px 8px rgba(155,40,90,0.08);
+  --shadow-lg:0 8px 24px rgba(155,40,90,0.12);
+  --radius:14px;
+  --radius-lg:20px;
+  --radius-sm:10px;
+  --font-display:"Cormorant Garamond","Playfair Display",Georgia,"Times New Roman",serif;
+  --font-body:"Plus Jakarta Sans","SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:var(--font-body)}
+body{background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;overscroll-behavior-y:contain;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+input[type="date"]{font-family:var(--font-body)}
+
+/* App shell */
+#app{
+  max-width:480px;margin:0 auto;min-height:100vh;
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  position:relative;
+}
+.header{
+  padding:18px 20px 10px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.header-title{
+  font-family:var(--font-display);
+  font-size:28px;font-weight:600;letter-spacing:-0.01em;
+  color:var(--primary-dark);
+  line-height:1.1;
+}
+.header-sub{font-size:12px;color:var(--text-muted);letter-spacing:0.04em;text-transform:uppercase;margin-top:2px}
+.header-logo{
+  width:38px;height:38px;border-radius:12px;
+  background:linear-gradient(135deg,#FB7185,#DB2777);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow);
+  flex-shrink:0;
+}
+
+/* Bottom nav */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--border-soft);
+  padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+  z-index:50;
+}
+.bottom-nav-inner{
+  max-width:480px;margin:0 auto;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:4px;
+  padding:0 8px;
+}
+.nav-item{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:6px 4px;border-radius:10px;
+  color:var(--text-muted);
+  transition:color 0.2s,background 0.2s;
+}
+.nav-item.active{color:var(--primary)}
+.nav-item:active{background:var(--primary-faint)}
+.nav-icon{width:22px;height:22px;display:block}
+.nav-label{font-size:11px;font-weight:500;letter-spacing:0.01em}
+
+/* Cards */
+.card{
+  background:var(--card);
+  border-radius:var(--radius-lg);
+  padding:18px;
+  box-shadow:var(--shadow-sm);
+  border:1px solid var(--border-soft);
+}
+.card + .card{margin-top:14px}
+.card-title{
+  font-family:var(--font-display);
+  font-size:20px;font-weight:600;
+  color:var(--primary-dark);
+  margin-bottom:10px;
+  letter-spacing:-0.01em;
+}
+.card-section{padding:0 20px}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 18px;border-radius:12px;
+  font-weight:600;font-size:15px;
+  transition:transform 0.1s,opacity 0.2s,background 0.2s;
+  min-height:46px;
+}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:var(--primary);color:white;box-shadow:var(--shadow)}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-secondary{background:var(--primary-light);color:var(--primary-dark)}
+.btn-ghost{background:transparent;color:var(--primary)}
+.btn-outline{background:white;color:var(--primary);border:1.5px solid var(--primary-light)}
+.btn-danger{background:var(--danger-bg);color:var(--danger)}
+.btn-block{width:100%}
+.btn-sm{padding:8px 12px;font-size:13px;min-height:36px;border-radius:9px}
+.btn:disabled{opacity:0.45;cursor:not-allowed}
+
+/* Form */
+.form-group{margin-bottom:14px}
+.form-label{
+  display:block;font-size:13px;font-weight:600;
+  color:var(--text-muted);
+  margin-bottom:6px;letter-spacing:0.01em;
+}
+.form-input{
+  width:100%;padding:12px 14px;
+  border:1.5px solid var(--border);
+  border-radius:11px;
+  background:white;font-size:15px;
+  transition:border-color 0.2s;
+  -webkit-appearance:none;appearance:none;
+}
+.form-input:focus{outline:none;border-color:var(--primary)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-help{font-size:12px;color:var(--text-muted);margin-top:4px}
+.form-error{font-size:12px;color:var(--danger);margin-top:4px}
+
+/* Banners */
+.banner{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:12px 14px;border-radius:12px;
+  font-size:13px;line-height:1.45;
+}
+.banner-icon{flex-shrink:0;margin-top:1px}
+.banner-warning{background:var(--warning-bg);color:#92400E;border:1px solid var(--warning-border)}
+.banner-info{background:var(--predicted-bg);color:#1E40AF;border:1px solid #93C5FD}
+.banner-success{background:var(--safe-bg);color:#065F46;border:1px solid #6EE7B7}
+.banner-danger{background:var(--danger-bg);color:#991B1B;border:1px solid #FCA5A5}
+
+/* Reliability meter */
+.reliability{
+  border-radius:var(--radius-lg);padding:14px 16px;
+  margin-bottom:14px;
+}
+.reliability-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.reliability-status{font-weight:700;font-size:14px;letter-spacing:0.01em}
+.reliability-variation{font-size:12px;font-weight:500;opacity:0.85}
+.reliability-bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.5);overflow:hidden;margin-bottom:8px}
+.reliability-fill{height:100%;border-radius:3px;transition:width 0.4s}
+.reliability-msg{font-size:12.5px;line-height:1.45}
+.rel-green{background:#ECFDF5;color:#065F46;border:1px solid #6EE7B7}
+.rel-green .reliability-fill{background:#10B981}
+.rel-yellow{background:#FFFBEB;color:#92400E;border:1px solid #FCD34D}
+.rel-yellow .reliability-fill{background:#F59E0B}
+.rel-red{background:#FEF2F2;color:#991B1B;border:1px solid #FCA5A5}
+.rel-red .reliability-fill{background:#EF4444}
+
+/* Calendar */
+.cal-nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 4px;margin-bottom:12px;
+}
+.cal-nav-btn{
+  width:38px;height:38px;border-radius:50%;
+  background:white;color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-sm);
+}
+.cal-nav-btn:active{background:var(--primary-faint)}
+.cal-month-title{
+  font-family:var(--font-display);
+  font-size:22px;font-weight:600;color:var(--primary-dark);
+  letter-spacing:-0.01em;
+}
+.cal-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  gap:4px;
+}
+.cal-weekday{
+  text-align:center;font-size:11px;font-weight:600;
+  color:var(--text-muted);
+  padding:6px 0;letter-spacing:0.06em;text-transform:uppercase;
+}
+.cal-weekday.weekend{color:var(--primary)}
+.cal-cell{
+  aspect-ratio:1;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:500;
+  border-radius:10px;
+  position:relative;
+  transition:transform 0.1s;
+  background:transparent;
+  border:1.5px solid transparent;
+}
+.cal-cell:not(.empty):active{transform:scale(0.92)}
+.cal-cell.empty{visibility:hidden}
+.cal-cell.today{
+  font-weight:700;
+}
+.cal-cell.today::after{
+  content:"";position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
+  width:4px;height:4px;border-radius:50%;background:var(--primary-dark);
+}
+.cal-cell.period{background:var(--period);color:white}
+.cal-cell.fertile{background:var(--fertile-bg);color:#9A3412;border-color:var(--fertile)}
+.cal-cell.safe{background:var(--safe-bg);color:#065F46}
+.cal-cell.predicted-period{
+  background:transparent;color:var(--predicted);
+  border:1.5px dashed var(--predicted);
+}
+.cal-cell.unknown{background:var(--unknown-bg);color:var(--text-muted)}
+.cal-cell.today.period::after,.cal-cell.today.fertile::after{background:#7C2D12}
+.cal-cell.today.safe::after{background:#065F46}
+
+/* Legend */
+.legend{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:16px;font-size:12px;
+}
+.legend-item{display:flex;align-items:center;gap:7px}
+.legend-swatch{width:14px;height:14px;border-radius:5px;flex-shrink:0}
+.legend-swatch.period{background:var(--period)}
+.legend-swatch.fertile{background:var(--fertile-bg);border:1.5px solid var(--fertile)}
+.legend-swatch.safe{background:var(--safe-bg)}
+.legend-swatch.predicted-period{background:transparent;border:1.5px dashed var(--predicted)}
+.legend-swatch.unknown{background:var(--unknown-bg)}
+
+/* Day detail modal */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(31,18,53,0.45);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:flex;align-items:flex-end;justify-content:center;
+  z-index:100;
+  animation:fadeIn 0.2s;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal{
+  background:white;
+  border-radius:24px 24px 0 0;
+  width:100%;max-width:480px;
+  padding:24px 22px calc(24px + env(safe-area-inset-bottom));
+  animation:slideUp 0.25s cubic-bezier(0.16,1,0.3,1);
+  max-height:90vh;overflow-y:auto;
+}
+.modal-handle{
+  width:36px;height:4px;border-radius:2px;background:var(--border);
+  margin:-10px auto 16px;
+}
+.modal-title{
+  font-family:var(--font-display);
+  font-size:22px;font-weight:600;color:var(--primary-dark);
+  margin-bottom:6px;letter-spacing:-0.01em;
+}
+.modal-subtitle{font-size:13px;color:var(--text-muted);margin-bottom:16px}
+
+.day-status-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:999px;
+  font-size:13px;font-weight:600;margin-bottom:8px;
+}
+.day-status-pill .swatch{width:10px;height:10px;border-radius:50%}
+.day-status-pill.period{background:var(--period-bg);color:#991B1B}
+.day-status-pill.period .swatch{background:var(--period)}
+.day-status-pill.fertile{background:var(--fertile-bg);color:#9A3412}
+.day-status-pill.fertile .swatch{background:var(--fertile)}
+.day-status-pill.safe{background:var(--safe-bg);color:#065F46}
+.day-status-pill.safe .swatch{background:var(--safe)}
+.day-status-pill.predicted-period{background:var(--predicted-bg);color:#1E40AF}
+.day-status-pill.predicted-period .swatch{background:var(--predicted)}
+.day-status-pill.unknown{background:var(--unknown-bg);color:var(--text-muted)}
+.day-status-pill.unknown .swatch{background:var(--unknown)}
+
+/* Stats grid */
+.stats-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.stat-card{
+  background:var(--card);border-radius:var(--radius);
+  padding:14px;border:1px solid var(--border-soft);
+}
+.stat-label{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
+.stat-value{
+  font-family:var(--font-display);
+  font-size:28px;font-weight:600;color:var(--primary-dark);line-height:1;
+}
+.stat-unit{font-size:12px;color:var(--text-muted);margin-left:3px;font-family:var(--font-body)}
+.stat-detail{font-size:12px;color:var(--text-muted);margin-top:4px}
+.stat-card.wide{grid-column:span 2}
+.stat-card.highlight{
+  background:linear-gradient(135deg,#FFE4E6,#FBCFE8);
+  border-color:var(--primary-light);
+}
+.stat-card.highlight .stat-value{color:var(--primary-dark)}
+
+/* Cycle list */
+.cycle-list{display:flex;flex-direction:column;gap:8px}
+.cycle-item{
+  background:white;border:1px solid var(--border-soft);
+  border-radius:var(--radius);
+  padding:12px 14px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.cycle-info{flex:1;min-width:0}
+.cycle-dates{font-size:14px;font-weight:600;color:var(--text)}
+.cycle-meta{font-size:12px;color:var(--text-muted);margin-top:2px}
+.cycle-actions{display:flex;gap:6px;flex-shrink:0}
+.icon-btn{
+  width:34px;height:34px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg-soft);color:var(--primary-dark);
+}
+.icon-btn.danger{background:var(--danger-bg);color:var(--danger)}
+.icon-btn:active{transform:scale(0.92)}
+
+/* Onboarding */
+.onb-screen{padding:32px 24px 100px;min-height:100vh}
+.onb-logo{
+  width:84px;height:84px;border-radius:24px;
+  background:linear-gradient(135deg,#FB7185,#DB2777);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 24px;
+  box-shadow:0 12px 32px rgba(219,39,119,0.25);
+}
+.onb-title{
+  font-family:var(--font-display);
+  font-size:32px;font-weight:600;color:var(--primary-dark);
+  text-align:center;margin-bottom:10px;letter-spacing:-0.01em;
+}
+.onb-subtitle{
+  text-align:center;color:var(--text-muted);
+  font-size:14.5px;line-height:1.55;margin-bottom:28px;
+}
+.onb-counter{
+  text-align:center;font-size:13px;color:var(--text-muted);
+  margin-bottom:14px;
+}
+.onb-counter strong{color:var(--primary-dark);font-weight:700}
+.onb-progress{
+  height:6px;background:var(--border-soft);border-radius:3px;
+  overflow:hidden;margin-bottom:24px;
+}
+.onb-progress-fill{
+  height:100%;background:linear-gradient(90deg,#FB7185,#DB2777);
+  border-radius:3px;transition:width 0.3s;
+}
+.onb-method-info{
+  background:var(--primary-faint);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;
+  font-size:13px;line-height:1.55;color:var(--text);
+  margin-bottom:20px;
+}
+.onb-method-info strong{color:var(--primary-dark)}
+
+/* Empty state */
+.empty-state{
+  text-align:center;padding:40px 20px;
+  color:var(--text-muted);
+}
+.empty-icon{
+  width:64px;height:64px;border-radius:50%;
+  background:var(--bg-soft);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 14px;
+  color:var(--primary);
+}
+.empty-title{font-family:var(--font-display);font-size:18px;color:var(--primary-dark);margin-bottom:6px;font-weight:600}
+.empty-msg{font-size:13.5px;line-height:1.5}
+
+/* Section header */
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 4px;margin:18px 0 10px;
+}
+.section-title{
+  font-family:var(--font-display);
+  font-size:18px;font-weight:600;color:var(--primary-dark);
+  letter-spacing:-0.01em;
+}
+.section-count{font-size:12px;color:var(--text-muted);font-weight:500}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:96px;left:50%;transform:translateX(-50%);
+  background:var(--text);color:white;
+  padding:11px 18px;border-radius:999px;
+  font-size:13.5px;font-weight:500;
+  box-shadow:0 8px 24px rgba(0,0,0,0.2);
+  z-index:200;
+  animation:toastIn 0.3s,toastOut 0.3s 2.4s forwards;
+  max-width:88%;text-align:center;
+}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes toastOut{to{opacity:0;transform:translate(-50%,12px)}}
+
+/* Confirm modal */
+.confirm-modal{
+  background:white;border-radius:20px;
+  padding:22px;width:90%;max-width:360px;
+  margin:auto;
+  animation:popIn 0.2s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes popIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+.confirm-overlay{
+  position:fixed;inset:0;background:rgba(31,18,53,0.5);
+  display:flex;align-items:center;justify-content:center;
+  z-index:150;padding:20px;
+}
+.confirm-title{font-family:var(--font-display);font-size:20px;font-weight:600;color:var(--primary-dark);margin-bottom:8px}
+.confirm-msg{font-size:14px;color:var(--text-muted);margin-bottom:18px;line-height:1.5}
+.confirm-actions{display:flex;gap:8px}
+.confirm-actions .btn{flex:1}
+
+/* Install banner */
+.install-banner{
+  background:linear-gradient(135deg,#FDF2F8,#FCE7F3);
+  border:1.5px solid var(--primary-light);
+  border-radius:var(--radius-lg);
+  padding:14px 16px;
+  margin-bottom:14px;
+  display:flex;align-items:flex-start;gap:12px;
+}
+.install-banner-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,#FB7185,#DB2777);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;color:white;
+}
+.install-banner-body{flex:1}
+.install-banner-title{font-weight:700;font-size:14px;color:var(--primary-dark);margin-bottom:3px}
+.install-banner-msg{font-size:12.5px;color:var(--text-muted);line-height:1.45}
+.install-steps{
+  background:white;border-radius:var(--radius);
+  border:1px solid var(--border-soft);
+  padding:14px;margin-top:10px;
+}
+.install-step{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:6px 0;font-size:13px;line-height:1.5;
+}
+.install-step + .install-step{border-top:1px solid var(--border-soft)}
+.install-step-num{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--primary);color:white;
+  font-size:11px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+.step-kbd{
+  display:inline-block;background:var(--bg-soft);
+  border:1px solid var(--border);border-radius:5px;
+  padding:1px 7px;font-size:12px;font-weight:600;
+  color:var(--primary-dark);white-space:nowrap;
+}
+
+
+.divider{height:1px;background:var(--border-soft);margin:14px 0}
+.text-center{text-align:center}
+.text-muted{color:var(--text-muted)}
+.mt-1{margin-top:8px}.mt-2{margin-top:14px}.mt-3{margin-top:20px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:14px}.mb-3{margin-bottom:20px}
+.flex{display:flex}.gap-2{gap:10px}
+.hidden{display:none!important}
+
+@media (min-width:520px){
+  body{background:linear-gradient(135deg,#FCE7F3,#FDF2F8)}
+  #app{box-shadow:0 0 40px rgba(219,39,119,0.08);background:var(--bg);min-height:100vh}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<script>
+/* ============================================================
+   SikluSayang — NFP Calendar (Ogino-Knaus Method)
+   ============================================================ */
+
+/* ---------- PWA Manifest (data URI — works in Samsung Internet & Chrome) ---------- */
+(function(){
+  const iconSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%23DB2777'/><g transform='translate(256 256)' fill='%23FBCFE8'><ellipse rx='52' ry='90' cy='-92'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(72)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(144)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(216)'/><ellipse rx='52' ry='90' cy='-92' transform='rotate(288)'/><circle r='42' fill='%23FFFFFF'/></g></svg>`;
+  const iconUrl = 'data:image/svg+xml;utf8,' + iconSvg;
+  const manifest = {
+    name: "SikluSayang — Kalender Kesuburan",
+    short_name: "SikluSayang",
+    description: "Pelacak siklus haid dengan metode Ogino-Knaus",
+    start_url: "",
+    scope: "",
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#FDF2F8",
+    theme_color: "#DB2777",
+    lang: "id",
+    icons: [
+      {src: iconUrl, sizes: "192x192", type: "image/svg+xml", purpose: "any maskable"},
+      {src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable"}
+    ]
+  };
+  // data: URI works in Samsung Internet; blob: does not
+  try {
+    document.getElementById('manifest-link').href =
+      'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+  } catch(e) {}
+})();
+
+/* ---------- Install prompt (Chrome beforeinstallprompt) ---------- */
+let _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  // Show install banner if visible
+  const banner = document.getElementById('install-banner');
+  if(banner) banner.classList.remove('hidden');
+});
+
+/* ---------- Storage ---------- */
+const STORAGE_KEY = 'siklusayang_v1';
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return {cycles: [], onboardingComplete: false};
+    const d = JSON.parse(raw);
+    return {
+      cycles: Array.isArray(d.cycles) ? d.cycles : [],
+      onboardingComplete: !!d.onboardingComplete
+    };
+  }catch(e){
+    console.error('Load failed', e);
+    return {cycles: [], onboardingComplete: false};
+  }
+}
+
+function saveData(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      cycles: state.cycles,
+      onboardingComplete: state.onboardingComplete
+    }));
+  }catch(e){
+    console.error('Save failed', e);
+    showToast('Gagal menyimpan data');
+  }
+}
+
+/* ---------- State ---------- */
+const initial = loadData();
+const state = {
+  cycles: initial.cycles,
+  onboardingComplete: initial.onboardingComplete,
+  currentView: 'kalender',
+  calendarMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+};
+
+/* ---------- Date helpers ---------- */
+function pad(n){return String(n).padStart(2,'0')}
+function fmtDate(d){
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function parseDate(s){
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function daysBetween(a,b){
+  const d1 = typeof a === 'string' ? parseDate(a) : a;
+  const d2 = typeof b === 'string' ? parseDate(b) : b;
+  const ms = d2 - d1;
+  return Math.round(ms / 86400000);
+}
+function addDays(s, n){
+  const d = parseDate(s);
+  d.setDate(d.getDate() + n);
+  return fmtDate(d);
+}
+function todayStr(){return fmtDate(new Date())}
+
+const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const WEEKDAYS_ID = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+const DAYS_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+function fmtDateLong(s){
+  const d = parseDate(s);
+  return `${DAYS_ID[d.getDay()]}, ${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
+}
+function fmtDateShort(s){
+  const d = parseDate(s);
+  return `${d.getDate()} ${MONTHS_ID[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+}
+
+/* ---------- Cycle math (Ogino-Knaus) ---------- */
+function sortedCycles(){
+  return [...state.cycles].sort((a,b)=>a.startDate.localeCompare(b.startDate));
+}
+
+function getCycleLengths(){
+  const sorted = sortedCycles();
+  const lens = [];
+  for(let i=1; i<sorted.length; i++){
+    const len = daysBetween(sorted[i-1].startDate, sorted[i].startDate);
+    if(len >= 15 && len <= 60) lens.push(len); // physiologic sanity
+  }
+  return lens;
+}
+
+function getRecentCycleLengths(){
+  return getCycleLengths().slice(-12);
+}
+
+function getAvgPeriodLength(){
+  const withEnd = state.cycles.filter(c => c.endDate);
+  if(withEnd.length === 0) return 5;
+  const lens = withEnd.map(c => daysBetween(c.startDate, c.endDate) + 1)
+                      .filter(l => l >= 1 && l <= 14);
+  if(lens.length === 0) return 5;
+  return Math.round(lens.reduce((a,b)=>a+b,0) / lens.length);
+}
+
+function getStats(){
+  const lens = getRecentCycleLengths();
+  if(lens.length === 0) return null;
+  const shortest = Math.min(...lens);
+  const longest = Math.max(...lens);
+  const avg = lens.reduce((a,b)=>a+b,0) / lens.length;
+  const variation = longest - shortest;
+  // Ogino-Knaus
+  const fertileStart = shortest - 18; // day in cycle
+  const fertileEnd = longest - 11;
+  const fertileWidth = Math.max(0, fertileEnd - fertileStart + 1);
+  return {
+    shortest, longest,
+    avg: avg,
+    avgRound: Math.round(avg),
+    variation,
+    fertileStart, fertileEnd, fertileWidth,
+    lutealEstimate: 14,
+    cyclesUsed: lens.length,
+    totalCycles: state.cycles.length,
+    avgPeriodLen: getAvgPeriodLength()
+  };
+}
+
+function getReliability(){
+  const stats = getStats();
+  if(!stats || stats.cyclesUsed < 6) return null;
+  const v = stats.variation;
+  if(v <= 6) return {
+    level: 'green',
+    title: 'Siklus Teratur',
+    msg: 'Siklus Anda cukup teratur. Metode kalender cukup dapat diandalkan.',
+    variation: v,
+    barPct: Math.max(20, 100 - v*8)
+  };
+  if(v <= 9) return {
+    level: 'yellow',
+    title: 'Siklus Kurang Teratur',
+    msg: 'Siklus Anda memiliki variasi sedang. Jendela subur melebar — waspadai hari tidak aman.',
+    variation: v,
+    barPct: 60
+  };
+  return {
+    level: 'red',
+    title: 'Siklus Tidak Teratur',
+    msg: 'Siklus Anda sangat tidak teratur. Metode kalender tidak dianjurkan sebagai satu-satunya kontrasepsi.',
+    variation: v,
+    barPct: 30
+  };
+}
+
+/* Determine status of a single date string */
+function getDayStatus(dateStr){
+  const sorted = sortedCycles();
+
+  // 1. Actual menstruation day?
+  for(const c of sorted){
+    const end = c.endDate || c.startDate;
+    if(dateStr >= c.startDate && dateStr <= end){
+      return {type: 'period', label: 'Hari haid'};
+    }
+  }
+
+  if(sorted.length === 0){
+    return {type: 'unknown', label: 'Belum ada data'};
+  }
+
+  // Date before earliest log → unknown
+  if(dateStr < sorted[0].startDate){
+    return {type: 'unknown', label: 'Sebelum data tercatat'};
+  }
+
+  const stats = getStats();
+  if(!stats){
+    return {type: 'unknown', label: 'Perlu minimal 2 siklus'};
+  }
+
+  // Find anchor: most recent logged cycle start ≤ dateStr
+  let anchorIdx = -1;
+  for(let i = sorted.length - 1; i >= 0; i--){
+    if(sorted[i].startDate <= dateStr){anchorIdx = i; break}
+  }
+  if(anchorIdx === -1){
+    return {type: 'unknown', label: 'Sebelum data tercatat'};
+  }
+
+  let cycleStart = sorted[anchorIdx].startDate;
+  const lastLogged = sorted[sorted.length - 1].startDate;
+  let isPredicted = false;
+
+  // If we're past the last logged cycle, project forward in avgRound steps
+  if(anchorIdx === sorted.length - 1 && dateStr > lastLogged){
+    const avg = stats.avgRound;
+    while(true){
+      const next = addDays(cycleStart, avg);
+      if(next > dateStr) break;
+      cycleStart = next;
+      isPredicted = true;
+    }
+    // If date falls within predicted period window
+    if(isPredicted){
+      const predEnd = addDays(cycleStart, stats.avgPeriodLen - 1);
+      if(dateStr >= cycleStart && dateStr <= predEnd){
+        return {type: 'predicted-period', label: 'Prediksi haid berikutnya'};
+      }
+    }
+  }
+
+  const dayInCycle = daysBetween(cycleStart, dateStr) + 1;
+
+  if(dayInCycle >= stats.fertileStart && dayInCycle <= stats.fertileEnd){
+    return {
+      type: 'fertile',
+      label: isPredicted ? 'Prediksi fase subur' : 'Fase subur',
+      dayInCycle
+    };
+  }
+
+  return {
+    type: 'safe',
+    label: isPredicted ? 'Prediksi hari aman' : 'Hari aman',
+    dayInCycle
+  };
+}
+
+/* ---------- Cycle CRUD ---------- */
+function addCycle(startDate, endDate){
+  if(!startDate) throw new Error('Tanggal mulai wajib diisi');
+  if(endDate && endDate < startDate) throw new Error('Tanggal selesai tidak boleh sebelum tanggal mulai');
+  // Check for overlap
+  for(const c of state.cycles){
+    const cEnd = c.endDate || c.startDate;
+    const newEnd = endDate || startDate;
+    if(!(newEnd < c.startDate || startDate > cEnd)){
+      throw new Error('Periode bertumpang tindih dengan siklus yang sudah ada');
+    }
+  }
+  state.cycles.push({
+    id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    startDate,
+    endDate: endDate || null
+  });
+  saveData();
+}
+
+function updateCycle(id, startDate, endDate){
+  if(!startDate) throw new Error('Tanggal mulai wajib diisi');
+  if(endDate && endDate < startDate) throw new Error('Tanggal selesai tidak boleh sebelum tanggal mulai');
+  for(const c of state.cycles){
+    if(c.id === id) continue;
+    const cEnd = c.endDate || c.startDate;
+    const newEnd = endDate || startDate;
+    if(!(newEnd < c.startDate || startDate > cEnd)){
+      throw new Error('Periode bertumpang tindih dengan siklus yang sudah ada');
+    }
+  }
+  const idx = state.cycles.findIndex(c => c.id === id);
+  if(idx === -1) return;
+  state.cycles[idx] = {id, startDate, endDate: endDate || null};
+  saveData();
+}
+
+function deleteCycle(id){
+  state.cycles = state.cycles.filter(c => c.id !== id);
+  saveData();
+}
+
+/* ---------- Render: top-level ---------- */
+function render(){
+  const app = document.getElementById('app');
+  if(!state.onboardingComplete){
+    app.innerHTML = renderOnboarding();
+    bindOnboarding();
+    return;
+  }
+  app.innerHTML = `
+    ${renderHeader()}
+    <main>${renderView()}</main>
+    ${renderBottomNav()}
+  `;
+  bindGlobalEvents();
+}
+
+function renderHeader(){
+  const titles = {
+    kalender: ['Kalender', 'Pelacak siklus'],
+    catat: ['Catat Siklus', 'Tambah & kelola data'],
+    statistik: ['Statistik', 'Analisis siklus Anda'],
+    data: ['Data', 'Cadangan & impor']
+  };
+  const [t, sub] = titles[state.currentView] || titles.kalender;
+  return `
+    <header class="header">
+      <div>
+        <div class="header-title">${t}</div>
+        <div class="header-sub">${sub}</div>
+      </div>
+      <div class="header-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2 L12 5 M12 19 L12 22 M2 12 L5 12 M19 12 L22 12"/>
+        </svg>
+      </div>
+    </header>
+  `;
+}
+
+function renderBottomNav(){
+  const items = [
+    {id:'kalender', label:'Kalender', icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`},
+    {id:'catat', label:'Catat', icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><path d="M12 5v14M5 12h14"/></svg>`},
+    {id:'statistik', label:'Statistik', icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-5"/></svg>`},
+    {id:'data', label:'Data', icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>`}
+  ];
+  return `
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        ${items.map(i => `
+          <button class="nav-item ${state.currentView === i.id ? 'active' : ''}" data-nav="${i.id}">
+            ${i.icon}
+            <span class="nav-label">${i.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    </nav>
+  `;
+}
+
+function renderView(){
+  switch(state.currentView){
+    case 'kalender': return renderCalendarView();
+    case 'catat': return renderCatatView();
+    case 'statistik': return renderStatistikView();
+    case 'data': return renderDataView();
+    default: return renderCalendarView();
+  }
+}
+
+/* ---------- View: Calendar ---------- */
+function renderCalendarView(){
+  const stats = getStats();
+  const reliability = getReliability();
+  const warning = (!stats || stats.cyclesUsed < 6);
+
+  const m = state.calendarMonth;
+  const year = m.getFullYear();
+  const monthIdx = m.getMonth();
+  const monthName = MONTHS_ID[monthIdx];
+
+  const firstDay = new Date(year, monthIdx, 1);
+  const lastDay = new Date(year, monthIdx + 1, 0);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = lastDay.getDate();
+  const today = todayStr();
+
+  let cells = '';
+  for(let i = 0; i < startWeekday; i++) cells += `<div class="cal-cell empty"></div>`;
+  for(let d = 1; d <= daysInMonth; d++){
+    const date = fmtDate(new Date(year, monthIdx, d));
+    const status = getDayStatus(date);
+    const isToday = date === today;
+    cells += `<button class="cal-cell ${status.type} ${isToday ? 'today' : ''}" data-date="${date}">${d}</button>`;
+  }
+
+  const weekdayHeads = WEEKDAYS_ID.map((w,i) =>
+    `<div class="cal-weekday ${(i===0||i===6)?'weekend':''}">${w}</div>`
+  ).join('');
+
+  return `
+    <div class="card-section">
+      ${warning ? renderInsufficientWarning() : (reliability ? renderReliability(reliability) : '')}
+
+      <div class="cal-nav">
+        <button class="cal-nav-btn" data-cal-nav="prev" aria-label="Bulan sebelumnya">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button class="cal-month-title" data-cal-nav="today">${monthName} ${year}</button>
+        <button class="cal-nav-btn" data-cal-nav="next" aria-label="Bulan berikutnya">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="cal-grid">${weekdayHeads}</div>
+        <div class="cal-grid" style="margin-top:4px">${cells}</div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-swatch period"></span>Hari haid</div>
+          <div class="legend-item"><span class="legend-swatch fertile"></span>Fase subur</div>
+          <div class="legend-item"><span class="legend-swatch safe"></span>Hari aman</div>
+          <div class="legend-item"><span class="legend-swatch predicted-period"></span>Prediksi haid</div>
+          <div class="legend-item"><span class="legend-swatch unknown"></span>Belum diketahui</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderInsufficientWarning(){
+  return `
+    <div class="banner banner-warning mb-2">
+      <svg class="banner-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+      <div>Data siklus belum cukup. Diperlukan minimal 6 siklus untuk prediksi yang akurat.</div>
+    </div>
+  `;
+}
+
+function renderReliability(r){
+  return `
+    <div class="reliability rel-${r.level}">
+      <div class="reliability-row">
+        <div class="reliability-status">${r.title}</div>
+        <div class="reliability-variation">Variasi: ${r.variation} hari</div>
+      </div>
+      <div class="reliability-bar"><div class="reliability-fill" style="width:${r.barPct}%"></div></div>
+      <div class="reliability-msg">${r.msg}</div>
+    </div>
+  `;
+}
+
+/* ---------- View: Catat ---------- */
+function renderCatatView(){
+  const sorted = [...state.cycles].sort((a,b)=>b.startDate.localeCompare(a.startDate));
+  const today = todayStr();
+
+  const list = sorted.length === 0 ? `
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </div>
+      <div class="empty-title">Belum ada siklus</div>
+      <div class="empty-msg">Mulai dengan menambah siklus haid pertama Anda di atas.</div>
+    </div>
+  ` : `
+    <div class="cycle-list">
+      ${sorted.map((c,i) => renderCycleItem(c, sorted[i+1])).join('')}
+    </div>
+  `;
+
+  return `
+    <div class="card-section">
+      <div class="card mb-2">
+        <div class="card-title">Tambah Siklus</div>
+        <div class="form-group">
+          <label class="form-label" for="add-start">Tanggal mulai haid</label>
+          <input type="date" class="form-input" id="add-start" max="${today}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="add-end">Tanggal selesai haid <span style="font-weight:400;color:var(--text-muted)">(opsional)</span></label>
+          <input type="date" class="form-input" id="add-end" max="${today}">
+        </div>
+        <div id="add-error" class="form-error hidden"></div>
+        <button class="btn btn-primary btn-block mt-1" id="add-cycle-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Simpan Siklus
+        </button>
+      </div>
+
+      <div class="section-head">
+        <div class="section-title">Riwayat Siklus</div>
+        <div class="section-count">${state.cycles.length} tercatat</div>
+      </div>
+      ${list}
+    </div>
+  `;
+}
+
+function renderCycleItem(c, prev){
+  // prev is the older cycle (sorted desc by startDate)
+  let cycleLength = null;
+  if(prev){
+    cycleLength = daysBetween(prev.startDate, c.startDate);
+  }
+  const periodLen = c.endDate ? daysBetween(c.startDate, c.endDate) + 1 : null;
+  const meta = [];
+  if(cycleLength != null && cycleLength > 0) meta.push(`Siklus ${cycleLength} hari`);
+  if(periodLen) meta.push(`Haid ${periodLen} hari`);
+  else meta.push(`Tanpa tanggal selesai`);
+
+  const dateLine = c.endDate
+    ? `${fmtDateShort(c.startDate)} → ${fmtDateShort(c.endDate)}`
+    : `${fmtDateShort(c.startDate)}`;
+
+  return `
+    <div class="cycle-item">
+      <div class="cycle-info">
+        <div class="cycle-dates">${dateLine}</div>
+        <div class="cycle-meta">${meta.join(' · ')}</div>
+      </div>
+      <div class="cycle-actions">
+        <button class="icon-btn" data-edit-cycle="${c.id}" aria-label="Edit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="icon-btn danger" data-del-cycle="${c.id}" aria-label="Hapus">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- View: Statistik ---------- */
+function renderStatistikView(){
+  const stats = getStats();
+  const reliability = getReliability();
+  const enough = stats && stats.cyclesUsed >= 6;
+
+  if(!stats){
+    return `
+      <div class="card-section">
+        ${renderInsufficientWarning()}
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-5"/></svg>
+          </div>
+          <div class="empty-title">Statistik belum tersedia</div>
+          <div class="empty-msg">Catat minimal 2 siklus untuk mulai melihat analisis.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="card-section">
+      ${enough ? renderReliability(reliability) : renderInsufficientWarning()}
+
+      <div class="card mb-2 stat-card highlight wide" style="padding:18px">
+        <div class="stat-label">Jendela subur Anda saat ini</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px">
+          <div class="stat-value">${stats.fertileWidth}</div>
+          <div style="font-size:14px;color:var(--text-muted)">hari</div>
+        </div>
+        <div class="stat-detail" style="margin-top:6px">
+          Dari hari ke-${stats.fertileStart} sampai hari ke-${stats.fertileEnd} siklus
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Rata-rata siklus</div>
+          <div class="stat-value">${stats.avg.toFixed(1)}<span class="stat-unit">hari</span></div>
+          <div class="stat-detail">dari ${stats.cyclesUsed} siklus</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total tercatat</div>
+          <div class="stat-value">${stats.totalCycles}<span class="stat-unit">siklus</span></div>
+          <div class="stat-detail">sepanjang waktu</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Siklus terpendek</div>
+          <div class="stat-value">${stats.shortest}<span class="stat-unit">hari</span></div>
+          <div class="stat-detail">12 siklus terakhir</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Siklus terpanjang</div>
+          <div class="stat-value">${stats.longest}<span class="stat-unit">hari</span></div>
+          <div class="stat-detail">12 siklus terakhir</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Variasi siklus</div>
+          <div class="stat-value">${stats.variation}<span class="stat-unit">hari</span></div>
+          <div class="stat-detail">terpanjang − terpendek</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Estimasi luteal</div>
+          <div class="stat-value">~${stats.lutealEstimate}<span class="stat-unit">hari</span></div>
+          <div class="stat-detail">perkiraan standar</div>
+        </div>
+      </div>
+
+      <div class="card mt-2">
+        <div class="card-title" style="font-size:16px">Tentang Metode Ogino-Knaus</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text-muted)">
+          Jendela subur dihitung berdasarkan rumus klasik:<br>
+          <strong style="color:var(--primary-dark)">Hari ${stats.fertileStart}</strong> = siklus terpendek (${stats.shortest}) − 18<br>
+          <strong style="color:var(--primary-dark)">Hari ${stats.fertileEnd}</strong> = siklus terpanjang (${stats.longest}) − 11<br><br>
+          Metode ini paling akurat pada wanita dengan siklus teratur (variasi ≤ 6 hari) dan sebaiknya tidak digunakan sebagai satu-satunya metode kontrasepsi pada siklus tidak teratur.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDataView(){
+  // Detect browser for tailored instructions
+  const ua = navigator.userAgent;
+  const isSamsungBrowser = /SamsungBrowser/i.test(ua);
+  const isChrome = /Chrome/i.test(ua) && !/SamsungBrowser/i.test(ua);
+  const isFirefox = /Firefox/i.test(ua);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+
+  const installSection = isStandalone ? `
+    <div class="banner banner-success mb-2">
+      <svg class="banner-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div><strong>Sudah terpasang!</strong> Aplikasi berjalan dalam mode standalone.</div>
+    </div>
+  ` : `
+    <div class="install-banner" id="install-banner">
+      <div class="install-banner-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+      </div>
+      <div class="install-banner-body">
+        <div class="install-banner-title">Pasang ke Layar Utama</div>
+        <div class="install-banner-msg">Akses SikluSayang lebih cepat seperti aplikasi biasa, tanpa membuka browser.</div>
+        ${_deferredInstallPrompt ? `
+          <button class="btn btn-primary btn-sm mt-1" id="pwa-install-btn">Pasang Sekarang</button>
+        ` : `
+          <div class="install-steps">
+            ${isSamsungBrowser ? `
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Panduan Samsung Internet</div>
+              <div class="banner banner-warning mb-2" style="font-size:12px">
+                <svg class="banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                <div>Samsung Internet memblokir instalasi dari file lokal. Anda harus menyalinnya ke penyimpanan internal terlebih dahulu.</div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div>Download ulang file ini ke folder <span class="step-kbd">Unduhan</span> perangkat Anda (bukan buka langsung dari notifikasi)</div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div>Buka Samsung Internet → ketuk <span class="step-kbd">⋮</span> (menu atas kanan)</div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div>Pilih <span class="step-kbd">Add page to</span> → <span class="step-kbd">Home screen</span></div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">4</div>
+                <div>💡 Alternatif terbaik: Buka file menggunakan <strong>Google Chrome</strong> → menu <span class="step-kbd">⋮</span> → <span class="step-kbd">Add to Home screen</span></div>
+              </div>
+            ` : isChrome ? `
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Panduan Google Chrome</div>
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div>Ketuk menu <span class="step-kbd">⋮</span> di pojok kanan atas Chrome</div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div>Pilih <span class="step-kbd">Add to Home screen</span></div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div>Konfirmasi nama → ketuk <span class="step-kbd">Add</span></div>
+              </div>
+            ` : `
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div>Buka file ini menggunakan <strong>Google Chrome</strong> untuk pengalaman terbaik</div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div>Ketuk menu <span class="step-kbd">⋮</span> → <span class="step-kbd">Add to Home screen</span></div>
+              </div>
+            `}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+
+  return `
+    <div class="card-section">
+      ${installSection}
+
+      <div class="card mb-2">
+        <div class="card-title">Cadangan Data</div>
+        <p style="font-size:13.5px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
+          Simpan salinan data Anda. File JSON dapat diimpor kembali; CSV untuk analisis di spreadsheet.
+        </p>
+        <button class="btn btn-primary btn-block mb-1" id="export-json">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Ekspor JSON (cadangan)
+        </button>
+        <button class="btn btn-outline btn-block" id="export-csv">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+          Ekspor CSV (spreadsheet)
+        </button>
+      </div>
+
+      <div class="card mb-2">
+        <div class="card-title">Pulihkan Data</div>
+        <p style="font-size:13.5px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
+          Impor file JSON dari cadangan sebelumnya. Data saat ini akan ditimpa.
+        </p>
+        <button class="btn btn-secondary btn-block" id="import-json">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Impor JSON
+        </button>
+        <input type="file" id="import-file" accept="application/json,.json" class="hidden">
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="color:var(--danger)">Zona Berbahaya</div>
+        <p style="font-size:13.5px;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
+          Hapus seluruh data dan kembali ke onboarding. Aksi ini tidak dapat dibatalkan.
+        </p>
+        <button class="btn btn-danger btn-block" id="reset-all">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Reset Semua Data
+        </button>
+      </div>
+
+      <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:24px;line-height:1.6">
+        SikluSayang · Ogino-Knaus<br>
+        Data tersimpan lokal di perangkat Anda
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- View: Onboarding ---------- */
+function renderOnboarding(){
+  const sorted = [...state.cycles].sort((a,b)=>b.startDate.localeCompare(a.startDate));
+  const count = state.cycles.length;
+  const target = 6;
+  const progressPct = Math.min(100, (count / target) * 100);
+  const today = todayStr();
+  const oneYearAgo = (() => {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+    return fmtDate(d);
+  })();
+
+  const list = sorted.length === 0 ? '' : `
+    <div class="section-head"><div class="section-title">Tercatat</div><div class="section-count">${count} siklus</div></div>
+    <div class="cycle-list mb-2">
+      ${sorted.map((c,i) => renderCycleItem(c, sorted[i+1])).join('')}
+    </div>
+  `;
+
+  return `
+    <div class="onb-screen">
+      <div class="onb-logo">
+        <svg width="44" height="44" viewBox="0 0 64 64" fill="none">
+          <g transform="translate(32 32)" fill="#FBCFE8">
+            <ellipse rx="9" ry="16" cy="-15"/>
+            <ellipse rx="9" ry="16" cy="-15" transform="rotate(72)"/>
+            <ellipse rx="9" ry="16" cy="-15" transform="rotate(144)"/>
+            <ellipse rx="9" ry="16" cy="-15" transform="rotate(216)"/>
+            <ellipse rx="9" ry="16" cy="-15" transform="rotate(288)"/>
+            <circle r="7" fill="white"/>
+          </g>
+        </svg>
+      </div>
+      <div class="onb-title">Selamat datang</div>
+      <div class="onb-subtitle">
+        Mari mulai dengan mencatat <strong>6–12 siklus terakhir</strong> Anda untuk mendapatkan prediksi terbaik dengan metode Ogino-Knaus.
+      </div>
+
+      <div class="onb-method-info">
+        <strong>📋 Yang perlu dicatat:</strong><br>
+        Tanggal hari pertama haid (mulai bercak/darah) untuk setiap bulan. Tanggal selesai bersifat opsional namun membantu akurasi.
+      </div>
+
+      <div class="onb-counter">
+        <strong>${count}</strong> dari minimal <strong>${target}</strong> siklus tercatat
+      </div>
+      <div class="onb-progress">
+        <div class="onb-progress-fill" style="width:${progressPct}%"></div>
+      </div>
+
+      <div class="card mb-2">
+        <div class="card-title" style="font-size:17px">Tambah Siklus</div>
+        <div class="form-group">
+          <label class="form-label" for="onb-start">Tanggal mulai haid</label>
+          <input type="date" class="form-input" id="onb-start" min="${oneYearAgo}" max="${today}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="onb-end">Tanggal selesai haid <span style="font-weight:400;color:var(--text-muted)">(opsional)</span></label>
+          <input type="date" class="form-input" id="onb-end" min="${oneYearAgo}" max="${today}">
+        </div>
+        <div id="onb-error" class="form-error hidden"></div>
+        <button class="btn btn-primary btn-block mt-1" id="onb-add-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Tambah Siklus
+        </button>
+      </div>
+
+      ${list}
+
+      <button class="btn ${count >= 1 ? 'btn-primary' : 'btn-outline'} btn-block mt-2" id="onb-finish-btn">
+        ${count >= target
+          ? '✓ Selesai — Lanjutkan ke Aplikasi'
+          : count >= 1
+            ? `Lanjutkan dengan ${count} siklus`
+            : 'Lewati untuk sekarang'}
+      </button>
+      ${count >= 1 && count < target ? `
+        <p class="text-center text-muted mt-1" style="font-size:12px">
+          Anda masih bisa menambah siklus nanti, namun prediksi akan kurang akurat.
+        </p>
+      ` : ''}
+    </div>
+  `;
+}
+
+/* ---------- Event binding ---------- */
+function bindGlobalEvents(){
+  // Bottom nav
+  document.querySelectorAll('[data-nav]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.currentView = b.dataset.nav;
+      render();
+    });
+  });
+
+  // Calendar nav
+  document.querySelectorAll('[data-cal-nav]').forEach(b => {
+    b.addEventListener('click', () => {
+      const dir = b.dataset.calNav;
+      if(dir === 'prev'){
+        state.calendarMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() - 1, 1);
+      } else if(dir === 'next'){
+        state.calendarMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() + 1, 1);
+      } else if(dir === 'today'){
+        const t = new Date();
+        state.calendarMonth = new Date(t.getFullYear(), t.getMonth(), 1);
+      }
+      render();
+    });
+  });
+
+  // Calendar day tap
+  document.querySelectorAll('[data-date]').forEach(b => {
+    b.addEventListener('click', () => showDayModal(b.dataset.date));
+  });
+
+  // Catat: add cycle
+  const addBtn = document.getElementById('add-cycle-btn');
+  if(addBtn){
+    addBtn.addEventListener('click', handleAddCycle);
+  }
+
+  // Catat: edit/delete
+  document.querySelectorAll('[data-edit-cycle]').forEach(b => {
+    b.addEventListener('click', () => showEditCycleModal(b.dataset.editCycle));
+  });
+  document.querySelectorAll('[data-del-cycle]').forEach(b => {
+    b.addEventListener('click', () => confirmDeleteCycle(b.dataset.delCycle));
+  });
+
+  // Data view
+  const ej = document.getElementById('export-json');
+  if(ej) ej.addEventListener('click', exportJSON);
+  const ec = document.getElementById('export-csv');
+  if(ec) ec.addEventListener('click', exportCSV);
+  const ij = document.getElementById('import-json');
+  const ifile = document.getElementById('import-file');
+  if(ij && ifile){
+    ij.addEventListener('click', () => ifile.click());
+    ifile.addEventListener('change', handleImportFile);
+  }
+  const reset = document.getElementById('reset-all');
+  if(reset) reset.addEventListener('click', confirmResetAll);
+
+  // PWA install button (Chrome beforeinstallprompt)
+  const pwaBtn = document.getElementById('pwa-install-btn');
+  if(pwaBtn && _deferredInstallPrompt){
+    pwaBtn.addEventListener('click', async () => {
+      _deferredInstallPrompt.prompt();
+      const {outcome} = await _deferredInstallPrompt.userChoice;
+      if(outcome === 'accepted'){
+        _deferredInstallPrompt = null;
+        showToast('SikluSayang berhasil dipasang ✨');
+        render();
+      }
+    });
+  }
+}
+
+function bindOnboarding(){
+  const addBtn = document.getElementById('onb-add-btn');
+  if(addBtn) addBtn.addEventListener('click', handleOnbAddCycle);
+
+  document.querySelectorAll('[data-edit-cycle]').forEach(b => {
+    b.addEventListener('click', () => showEditCycleModal(b.dataset.editCycle));
+  });
+  document.querySelectorAll('[data-del-cycle]').forEach(b => {
+    b.addEventListener('click', () => confirmDeleteCycle(b.dataset.delCycle));
+  });
+
+  const finish = document.getElementById('onb-finish-btn');
+  if(finish) finish.addEventListener('click', () => {
+    state.onboardingComplete = true;
+    saveData();
+    render();
+    showToast('Selamat datang di SikluSayang ✨');
+  });
+}
+
+/* ---------- Handlers ---------- */
+function handleAddCycle(){
+  const start = document.getElementById('add-start').value;
+  const end = document.getElementById('add-end').value;
+  const errEl = document.getElementById('add-error');
+  errEl.classList.add('hidden');
+  try{
+    addCycle(start, end);
+    showToast('Siklus tersimpan');
+    render();
+  }catch(e){
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+function handleOnbAddCycle(){
+  const start = document.getElementById('onb-start').value;
+  const end = document.getElementById('onb-end').value;
+  const errEl = document.getElementById('onb-error');
+  errEl.classList.add('hidden');
+  try{
+    addCycle(start, end);
+    showToast('Siklus ditambahkan');
+    render();
+  }catch(e){
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+/* ---------- Modals ---------- */
+function showDayModal(dateStr){
+  const status = getDayStatus(dateStr);
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `
+    <div class="modal-overlay" data-close-modal>
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        <div class="modal-title">${fmtDateLong(dateStr)}</div>
+        <div class="modal-subtitle">${dateStr === todayStr() ? 'Hari ini' : ''}</div>
+        <div class="day-status-pill ${status.type}">
+          <span class="swatch"></span>${status.label}
+        </div>
+        ${status.dayInCycle ? `<div class="text-muted" style="font-size:13px;margin-top:4px">Hari ke-${status.dayInCycle} dalam siklus</div>` : ''}
+        ${getDayAdvice(status)}
+        <div class="mt-3">
+          <button class="btn btn-secondary btn-block" data-close-modal>Tutup</button>
+        </div>
+      </div>
+    </div>
+  `;
+  modal.querySelectorAll('[data-close-modal]').forEach(el => {
+    el.addEventListener('click', closeModal);
+  });
+}
+
+function getDayAdvice(status){
+  const advice = {
+    'period': 'Hari haid aktual berdasarkan data yang Anda catat.',
+    'fertile': 'Hindari hubungan tanpa pengaman bila ingin mencegah kehamilan, atau lakukan untuk merencanakan kehamilan.',
+    'safe': 'Risiko kehamilan relatif lebih rendah. Tetap waspada — metode kalender bukan kontrasepsi sempurna.',
+    'predicted-period': 'Prediksi tanggal haid berikutnya berdasarkan rata-rata siklus Anda.',
+    'unknown': 'Belum cukup data untuk menentukan status hari ini.'
+  };
+  return `<div class="banner banner-info mt-2"><div>${advice[status.type] || ''}</div></div>`;
+}
+
+function showEditCycleModal(id){
+  const c = state.cycles.find(x => x.id === id);
+  if(!c) return;
+  const modal = document.getElementById('modal-root');
+  const today = todayStr();
+  modal.innerHTML = `
+    <div class="modal-overlay" data-close-modal>
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Edit Siklus</div>
+        <div class="modal-subtitle">Perbarui tanggal siklus ini</div>
+        <div class="form-group">
+          <label class="form-label" for="edit-start">Tanggal mulai</label>
+          <input type="date" class="form-input" id="edit-start" value="${c.startDate}" max="${today}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-end">Tanggal selesai (opsional)</label>
+          <input type="date" class="form-input" id="edit-end" value="${c.endDate || ''}" max="${today}">
+        </div>
+        <div id="edit-error" class="form-error hidden"></div>
+        <div class="flex gap-2 mt-2">
+          <button class="btn btn-outline" data-close-modal style="flex:1">Batal</button>
+          <button class="btn btn-primary" id="edit-save-btn" style="flex:1">Simpan</button>
+        </div>
+      </div>
+    </div>
+  `;
+  modal.querySelectorAll('[data-close-modal]').forEach(el => {
+    el.addEventListener('click', closeModal);
+  });
+  document.getElementById('edit-save-btn').addEventListener('click', () => {
+    const s = document.getElementById('edit-start').value;
+    const e = document.getElementById('edit-end').value;
+    const errEl = document.getElementById('edit-error');
+    errEl.classList.add('hidden');
+    try{
+      updateCycle(id, s, e);
+      closeModal();
+      showToast('Siklus diperbarui');
+      render();
+    }catch(err){
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+    }
+  });
+}
+
+function confirmDeleteCycle(id){
+  const c = state.cycles.find(x => x.id === id);
+  if(!c) return;
+  showConfirm({
+    title: 'Hapus Siklus?',
+    msg: `Siklus mulai ${fmtDateShort(c.startDate)} akan dihapus. Aksi ini tidak dapat dibatalkan.`,
+    confirmText: 'Hapus',
+    danger: true,
+    onConfirm: () => {
+      deleteCycle(id);
+      showToast('Siklus dihapus');
+      render();
+    }
+  });
+}
+
+function confirmResetAll(){
+  showConfirm({
+    title: 'Reset Semua Data?',
+    msg: 'Seluruh siklus tercatat akan dihapus dan Anda akan kembali ke layar onboarding. Aksi ini tidak dapat dibatalkan.',
+    confirmText: 'Reset',
+    danger: true,
+    onConfirm: () => {
+      state.cycles = [];
+      state.onboardingComplete = false;
+      saveData();
+      render();
+      showToast('Data berhasil direset');
+    }
+  });
+}
+
+function showConfirm({title, msg, confirmText='Konfirmasi', cancelText='Batal', danger=false, onConfirm}){
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `
+    <div class="confirm-overlay" data-close-modal>
+      <div class="confirm-modal" onclick="event.stopPropagation()">
+        <div class="confirm-title">${title}</div>
+        <div class="confirm-msg">${msg}</div>
+        <div class="confirm-actions">
+          <button class="btn btn-outline" data-close-modal>${cancelText}</button>
+          <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="confirm-yes-btn">${confirmText}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  modal.querySelectorAll('[data-close-modal]').forEach(el => {
+    el.addEventListener('click', closeModal);
+  });
+  document.getElementById('confirm-yes-btn').addEventListener('click', () => {
+    closeModal();
+    if(onConfirm) onConfirm();
+  });
+}
+
+function closeModal(){
+  document.getElementById('modal-root').innerHTML = '';
+}
+
+/* ---------- Toast ---------- */
+function showToast(msg){
+  const existing = document.querySelector('.toast');
+  if(existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+/* ---------- Export / Import ---------- */
+function exportJSON(){
+  const data = {
+    app: 'SikluSayang',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    cycles: state.cycles
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `siklusayang-backup-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Cadangan JSON diunduh');
+}
+
+function exportCSV(){
+  const sorted = sortedCycles();
+  const rows = [['tanggal_mulai','tanggal_selesai','panjang_haid_hari','panjang_siklus_hari']];
+  for(let i = 0; i < sorted.length; i++){
+    const c = sorted[i];
+    const periodLen = c.endDate ? daysBetween(c.startDate, c.endDate) + 1 : '';
+    const cycleLen = (i + 1 < sorted.length)
+      ? daysBetween(c.startDate, sorted[i+1].startDate)
+      : '';
+    rows.push([c.startDate, c.endDate || '', periodLen, cycleLen]);
+  }
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `siklusayang-${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV diunduh');
+}
+
+function handleImportFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!data.cycles || !Array.isArray(data.cycles)){
+        throw new Error('Format file tidak valid');
+      }
+      // Validate each
+      for(const c of data.cycles){
+        if(!c.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(c.startDate)){
+          throw new Error('Data siklus tidak valid');
+        }
+      }
+      showConfirm({
+        title: 'Impor Data?',
+        msg: `${data.cycles.length} siklus akan menggantikan ${state.cycles.length} siklus yang ada saat ini. Lanjutkan?`,
+        confirmText: 'Impor',
+        danger: false,
+        onConfirm: () => {
+          state.cycles = data.cycles.map(c => ({
+            id: c.id || ('c_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+            startDate: c.startDate,
+            endDate: c.endDate || null
+          }));
+          state.onboardingComplete = true;
+          saveData();
+          render();
+          showToast(`${data.cycles.length} siklus berhasil diimpor`);
+        }
+      });
+    }catch(err){
+      showToast('Gagal: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* ---------- Init ---------- */
+render();
+</script>
+</body>
+</html>
