@@ -229,7 +229,7 @@ input[type="date"]{font-family:var(--font-body)}
 .cal-weekday.weekend{color:var(--primary)}
 .cal-cell{
   aspect-ratio:1;
-  display:flex;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
   font-size:14px;font-weight:500;
   border-radius:10px;
   position:relative;
@@ -237,27 +237,21 @@ input[type="date"]{font-family:var(--font-body)}
   background:transparent;
   border:1.5px solid transparent;
 }
+.cal-day{line-height:1.1}
+.cal-pct{font-size:9px;font-weight:700;line-height:1;margin-top:1px;opacity:0.95}
 .cal-cell:not(.empty):active{transform:scale(0.92)}
 .cal-cell.empty{visibility:hidden}
-.cal-cell.today{
-  font-weight:700;
-}
-.cal-cell.today::after{
-  content:"";position:absolute;bottom:3px;left:50%;transform:translateX(-50%);
-  width:4px;height:4px;border-radius:50%;background:var(--primary-dark);
-}
+.cal-cell.today{font-weight:700}
+.cal-cell.today{box-shadow:0 0 0 2px var(--primary)}
 .cal-cell.period{background:var(--period);color:white}
-.cal-cell.fertile{background:var(--fertile);color:white;border-color:var(--fertile-dark)}
-.cal-cell.safe-pre{background:var(--caution-bg);color:#854D0E;border-color:var(--caution)}
-.cal-cell.safe-post{background:var(--safe-bg);color:#065F46}
-.cal-cell.predicted-period{
-  background:transparent;color:var(--predicted);
-  border:1.5px dashed var(--predicted);
-}
+.cal-cell.tier-vlow{background:#D1FAE5;color:#065F46}
+.cal-cell.tier-low{background:#ECFCCB;color:#3F6212}
+.cal-cell.tier-med{background:#FEF08A;color:#854D0E}
+.cal-cell.tier-high{background:#FFEDD5;color:#9A3412;border-color:#FDBA74}
+.cal-cell.tier-vhigh{background:#FEE2E2;color:#991B1B;border-color:#F87171}
+.cal-cell.is-pred{border-style:dashed;border-color:var(--predicted);opacity:0.85}
 .cal-cell.unknown{background:var(--unknown-bg);color:var(--text-muted)}
-.cal-cell.today.period::after,.cal-cell.today.fertile::after{background:white}
-.cal-cell.today.safe-pre::after{background:#854D0E}
-.cal-cell.today.safe-post::after{background:#065F46}
+.cal-cell.today.period .cal-day{color:white}
 
 /* Legend */
 .legend{
@@ -268,11 +262,15 @@ input[type="date"]{font-family:var(--font-body)}
 .legend-item{display:flex;align-items:center;gap:7px}
 .legend-swatch{width:14px;height:14px;border-radius:5px;flex-shrink:0}
 .legend-swatch.period{background:var(--period)}
-.legend-swatch.fertile{background:var(--fertile)}
-.legend-swatch.safe-pre{background:var(--caution-bg);border:1.5px solid var(--caution)}
-.legend-swatch.safe-post{background:var(--safe-bg)}
-.legend-swatch.predicted-period{background:transparent;border:1.5px dashed var(--predicted)}
-.legend-swatch.unknown{background:var(--unknown-bg)}
+.legend-swatch.tier-vlow{background:#D1FAE5}
+.legend-swatch.tier-low{background:#ECFCCB}
+.legend-swatch.tier-med{background:#FEF08A}
+.legend-swatch.tier-high{background:#FFEDD5;border:1.5px solid #FDBA74}
+.legend-swatch.tier-vhigh{background:#FEE2E2;border:1.5px solid #F87171}
+.legend-note{
+  font-size:11px;color:var(--text-muted);line-height:1.45;
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--border-soft);
+}
 
 /* Day detail modal */
 .modal-overlay{
@@ -480,6 +478,20 @@ input[type="date"]{font-family:var(--font-body)}
   margin-bottom:5px;
 }
 .verdict-sub{font-size:13px;line-height:1.45}
+.verdict-pct{font-size:34px;font-weight:800;letter-spacing:-0.02em}
+.verdict-tier{font-size:15px;font-weight:600;opacity:0.85}
+.verdict-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+
+/* Day probability block in modal */
+.day-prob-block{
+  background:var(--tbg);border:1.5px solid var(--t);
+  border-radius:var(--radius);padding:16px;margin-top:4px;
+  text-align:center;
+}
+.day-prob-label{font-size:12px;font-weight:600;color:var(--ttext);opacity:0.8;text-transform:uppercase;letter-spacing:0.04em}
+.day-prob-value{font-family:var(--font-display);font-size:44px;font-weight:700;color:var(--ttext);line-height:1.05;margin:4px 0}
+.day-prob-tier{font-size:12.5px;color:var(--ttext)}
+
 .verdict-escalation{
   margin-top:10px;padding:10px 12px;border-radius:11px;
   background:rgba(255,255,255,0.55);
@@ -818,6 +830,66 @@ function getStats(){
   };
 }
 
+/* ---------- Conception probability model ----------
+   Per-act conception probabilities relative to ovulation day are from
+   Wilcox, Weinberg & Baird (NEJM 1995): the 6-day fertile window ending on
+   ovulation, ranging 0.10 (−5d) to 0.33 (ovulation day).
+   Because calendar data cannot pinpoint ovulation, we marginalise over an
+   ovulation-day distribution derived from the user's own cycle-length
+   variability (+ luteal-phase variability). For irregular cycles this spreads
+   risk across many days — an honest reflection of the uncertainty. */
+const WILCOX = {'-5':0.10,'-4':0.16,'-3':0.14,'-2':0.27,'-1':0.31,'0':0.33,'1':0.02};
+function wilcox(offset){return WILCOX[String(offset)] || 0;}
+function normPdf(x,m,s){return Math.exp(-0.5*Math.pow((x-m)/s,2))/(s*Math.sqrt(2*Math.PI));}
+
+function getOvulationDistribution(){
+  const lens = getRecentCycleLengths();
+  if(lens.length < 3) return null; // need ≥3 cycle lengths for a meaningful spread
+  const mean = lens.reduce((a,b)=>a+b,0)/lens.length;
+  // sample SD (n−1) — slightly wider/conservative for small samples
+  const variance = lens.reduce((a,b)=>a+Math.pow(b-mean,2),0)/(lens.length-1);
+  let sdCyc = Math.sqrt(variance);
+  if(sdCyc < 1) sdCyc = 1; // floor: inherent biological + logging uncertainty
+  const lutealMean = 14, lutealSd = 1.5;
+  const ovMean = mean - lutealMean;
+  const ovSd = Math.sqrt(sdCyc*sdCyc + lutealSd*lutealSd);
+  return {ovMean, ovSd};
+}
+
+/* Probability (0..1) of conception from a single unprotected act on a given cycle day */
+function getConceptionProb(dayInCycle){
+  const dist = getOvulationDistribution();
+  if(!dist) return null;
+  const lo = Math.max(1, Math.round(dist.ovMean - 4*dist.ovSd));
+  const hi = Math.round(dist.ovMean + 4*dist.ovSd);
+  let norm = 0; const ks = [];
+  for(let k=lo; k<=hi; k++){
+    const pk = normPdf(k, dist.ovMean, dist.ovSd);
+    ks.push([k,pk]); norm += pk;
+  }
+  if(norm === 0) return 0;
+  let p = 0;
+  for(const [k,pk] of ks) p += (pk/norm) * wilcox(dayInCycle - k);
+  return p;
+}
+
+/* Risk tier from a probability (0..1) */
+function getProbTier(prob){
+  const pct = prob * 100;
+  if(pct < 1)  return {key:'vlow',  label:'Sangat rendah', color:'#059669', bg:'#D1FAE5', text:'#065F46'};
+  if(pct < 5)  return {key:'low',   label:'Rendah',        color:'#65A30D', bg:'#ECFCCB', text:'#3F6212'};
+  if(pct < 10) return {key:'med',   label:'Sedang',        color:'#CA8A04', bg:'#FEF08A', text:'#854D0E'};
+  if(pct < 20) return {key:'high',  label:'Tinggi',        color:'#EA580C', bg:'#FFEDD5', text:'#9A3412'};
+  return              {key:'vhigh', label:'Sangat tinggi', color:'#DC2626', bg:'#FEE2E2', text:'#991B1B'};
+}
+
+/* Round a probability to a display string, avoiding false precision */
+function fmtProb(prob){
+  const pct = prob * 100;
+  if(pct < 0.5) return '<1%';
+  return Math.round(pct) + '%';
+}
+
 function getReliability(){
   const stats = getStats();
   if(!stats || stats.cyclesUsed < 6) return null;
@@ -1001,29 +1073,20 @@ function getDayStatus(dateStr){
 
   const dayInCycle = daysBetween(cycleStart, dateStr) + 1;
 
-  if(dayInCycle >= stats.fertileStart && dayInCycle <= stats.fertileEnd){
-    return {
-      type: 'fertile',
-      label: isPredicted ? 'Prediksi subur — hindari' : 'Subur — hindari',
-      dayInCycle
-    };
+  // Conception probability for this cycle day (marginalised over ovulation uncertainty)
+  const prob = getConceptionProb(dayInCycle);
+  if(prob === null){
+    // Not enough cycles for a probability estimate
+    return {type:'unknown', label:'Perlu ≥3 siklus untuk estimasi', dayInCycle};
   }
-
-  // Pre-ovulatory days (before fertile window) are NOT reliably safe:
-  // in a shorter-than-average cycle, ovulation can arrive early.
-  if(dayInCycle < stats.fertileStart){
-    return {
-      type: 'safe-pre',
-      label: isPredicted ? 'Prediksi pra-subur' : 'Pra-subur — kurang aman',
-      dayInCycle
-    };
-  }
-
-  // Post-ovulatory days (after fertile window) are the most reliable safer days.
+  const tier = getProbTier(prob);
   return {
-    type: 'safe-post',
-    label: isPredicted ? 'Prediksi pasca-subur' : 'Pasca-subur — relatif paling aman',
-    dayInCycle
+    type: 'prob',
+    prob,
+    tier,
+    dayInCycle,
+    isPredicted,
+    label: (isPredicted ? 'Prediksi · ' : '') + 'Kemungkinan hamil ' + fmtProb(prob)
   };
 }
 
@@ -1162,8 +1225,19 @@ function renderCalendarView(){
   for(let d = 1; d <= daysInMonth; d++){
     const date = fmtDate(new Date(year, monthIdx, d));
     const status = getDayStatus(date);
+    const phase = getCyclePhase(date);
     const isToday = date === today;
-    cells += `<button class="cal-cell ${status.type} ${isToday ? 'today' : ''}" data-date="${date}">${d}</button>`;
+    let cls = status.type;
+    let pctLabel = '';
+    if(status.type === 'prob'){
+      cls = 'tier-' + status.tier.key + (status.isPredicted ? ' is-pred' : '');
+      pctLabel = `<span class="cal-pct">${fmtProb(status.prob)}</span>`;
+    }
+    // Phase strip at the bottom of the cell (second dimension: cycle phase)
+    const strip = phase
+      ? `<span class="cal-phase-strip" style="background:${phase.color}"></span>`
+      : '';
+    cells += `<button class="cal-cell ${cls} ${isToday ? 'today' : ''}" data-date="${date}"><span class="cal-day">${d}</span>${pctLabel}${strip}</button>`;
   }
 
   const weekdayHeads = WEEKDAYS_ID.map((w,i) =>
@@ -1191,11 +1265,19 @@ function renderCalendarView(){
         <div class="cal-grid" style="margin-top:4px">${cells}</div>
         <div class="legend">
           <div class="legend-item"><span class="legend-swatch period"></span>Hari haid</div>
-          <div class="legend-item"><span class="legend-swatch fertile"></span>Subur — hindari</div>
-          <div class="legend-item"><span class="legend-swatch safe-pre"></span>Pra-subur — kurang aman</div>
-          <div class="legend-item"><span class="legend-swatch safe-post"></span>Pasca-subur — lebih aman</div>
-          <div class="legend-item"><span class="legend-swatch predicted-period"></span>Prediksi haid</div>
-          <div class="legend-item"><span class="legend-swatch unknown"></span>Belum diketahui</div>
+          <div class="legend-item"><span class="legend-swatch tier-vlow"></span>&lt;1% — sangat rendah</div>
+          <div class="legend-item"><span class="legend-swatch tier-low"></span>1–4% — rendah</div>
+          <div class="legend-item"><span class="legend-swatch tier-med"></span>5–9% — sedang</div>
+          <div class="legend-item"><span class="legend-swatch tier-high"></span>10–19% — tinggi</div>
+          <div class="legend-item"><span class="legend-swatch tier-vhigh"></span>≥20% — sangat tinggi</div>
+        </div>
+        <div class="legend-note">Angka = perkiraan kemungkinan hamil dari satu kali hubungan tanpa kondom pada hari itu. Garis putus-putus = bulan prediksi.</div>
+        <div class="phase-legend-title">Strip bawah = fase siklus</div>
+        <div class="phase-legend">
+          <div class="phase-legend-item"><span class="phase-legend-strip" style="background:#E11D48"></span>Menstruasi</div>
+          <div class="phase-legend-item"><span class="phase-legend-strip" style="background:#059669"></span>Folikuler</div>
+          <div class="phase-legend-item"><span class="phase-legend-strip" style="background:#EA580C"></span>Ovulasi</div>
+          <div class="phase-legend-item"><span class="phase-legend-strip" style="background:#7C3AED"></span>Luteal</div>
         </div>
       </div>
     </div>
@@ -1228,21 +1310,22 @@ function renderPhaseHero(dateStr){
   const phase = getCyclePhase(dateStr);
   if(!phase) return '';
 
-  // Cross-reference fertility status so the phase card never contradicts the calendar
+  // Cross-reference conception probability so the phase card never contradicts the calendar
   const dayStatus = getDayStatus(dateStr);
-  const fertMap = {
-    'fertile': {txt:'Subur — hindari', color:'var(--fertile)'},
-    'safe-pre': {txt:'Pra-subur — kurang aman', color:'var(--caution)'},
-    'safe-post': {txt:'Pasca-subur — lebih aman', color:'var(--safe)'},
-    'period': {txt:'Hari haid', color:'var(--period)'},
-    'predicted-period': {txt:'Prediksi haid', color:'var(--predicted)'}
-  };
-  const fert = fertMap[dayStatus.type];
-  const fertLine = fert ? `
-    <div class="phase-fert-line">
-      <span class="phase-fert-dot" style="background:${fert.color}"></span>
-      <span>Status kesuburan: <strong style="color:${fert.color}">${fert.txt}</strong></span>
-    </div>` : '';
+  let fertLine = '';
+  if(dayStatus.type === 'prob'){
+    fertLine = `
+      <div class="phase-fert-line">
+        <span class="phase-fert-dot" style="background:${dayStatus.tier.color}"></span>
+        <span>Kemungkinan hamil hari ini: <strong style="color:${dayStatus.tier.color}">${fmtProb(dayStatus.prob)} (${dayStatus.tier.label})</strong></span>
+      </div>`;
+  } else if(dayStatus.type === 'period'){
+    fertLine = `
+      <div class="phase-fert-line">
+        <span class="phase-fert-dot" style="background:var(--period)"></span>
+        <span>Hari haid aktual</span>
+      </div>`;
+  }
 
   const segData = getPhaseSegments();
   let barHtml = '';
@@ -1302,26 +1385,42 @@ function renderPhaseHero(dateStr){
 function renderTodayVerdict(dateStr){
   const status = getDayStatus(dateStr);
   const rel = getReliability();
-  const map = {
-    'period':           {cls:'v-period',  head:'Sedang haid',              sub:'Hari haid aktual berdasarkan catatan Anda.'},
-    'fertile':          {cls:'v-danger',  head:'TIDAK AMAN hari ini',      sub:'Masa subur — risiko kehamilan tinggi bila berhubungan tanpa pengaman.'},
-    'safe-pre':         {cls:'v-caution', head:'KURANG AMAN hari ini',     sub:'Hari pra-subur. Ovulasi dapat datang lebih awal & sperma bertahan hingga 5 hari — tidak dijamin aman.'},
-    'safe-post':        {cls:'v-safe',    head:'Relatif lebih aman',       sub:'Hari pasca-subur — kategori paling andal di antara hari aman, namun tetap estimasi.'},
-    'predicted-period': {cls:'v-period',  head:'Prediksi haid',            sub:'Perkiraan hari haid berikutnya.'},
-    'unknown':          {cls:'v-unknown', head:'Belum dapat dinilai',      sub:'Data belum cukup untuk menilai hari ini.'}
-  };
-  const v = map[status.type] || map['unknown'];
+
+  if(status.type === 'period'){
+    return `
+      <div class="verdict v-period">
+        <div class="verdict-label">Kemungkinan hamil · hari ini</div>
+        <div class="verdict-head">Sedang haid</div>
+        <div class="verdict-sub">Hari haid aktual. Kesuburan pada hari haid umumnya rendah, namun pada siklus pendek bisa tidak nol.</div>
+      </div>`;
+  }
+  if(status.type === 'unknown' || status.type === 'predicted-period'){
+    const sub = status.type === 'predicted-period'
+      ? 'Perkiraan hari haid berikutnya.'
+      : 'Data belum cukup untuk mengestimasi kemungkinan hari ini.';
+    return `
+      <div class="verdict v-unknown">
+        <div class="verdict-label">Kemungkinan hamil · hari ini</div>
+        <div class="verdict-head">Belum dapat dihitung</div>
+        <div class="verdict-sub">${sub}</div>
+      </div>`;
+  }
+
+  // Probability day
+  const t = status.tier;
+  const vClassMap = {vlow:'v-safe', low:'v-safe', med:'v-caution', high:'v-danger', vhigh:'v-danger'};
+  const vClass = vClassMap[t.key] || 'v-caution';
 
   let escalation = '';
-  if(rel && rel.level === 'red' && (status.type === 'safe-pre' || status.type === 'safe-post')){
-    escalation = `<div class="verdict-escalation">Siklus Anda sangat tidak teratur (variasi ${rel.variation} hari). Label "aman" di sini <strong>tidak dapat diandalkan</strong> untuk mencegah kehamilan — gunakan kondom.</div>`;
+  if(rel && rel.level === 'red'){
+    escalation = `<div class="verdict-escalation">Siklus Anda sangat tidak teratur (variasi ${rel.variation} hari), sehingga angka ini memiliki ketidakpastian besar. Untuk mencegah kehamilan dengan andal, gunakan kondom pada semua hari berisiko.</div>`;
   }
 
   return `
-    <div class="verdict ${v.cls}">
-      <div class="verdict-label">Untuk hubungan tanpa kontrasepsi · hari ini</div>
-      <div class="verdict-head">${v.head}</div>
-      <div class="verdict-sub">${v.sub}</div>
+    <div class="verdict ${vClass}">
+      <div class="verdict-label">Kemungkinan hamil · satu kali tanpa kondom · hari ini</div>
+      <div class="verdict-head"><span class="verdict-pct">${fmtProb(status.prob)}</span> <span class="verdict-tier">${t.label}</span></div>
+      <div class="verdict-sub">Hari ke-${status.dayInCycle} siklus. Angka ini perkiraan dari pola siklus Anda — bukan kepastian.</div>
       ${escalation}
     </div>
   `;
@@ -1850,17 +1949,29 @@ function showDayModal(dateStr){
       ${phase.estimated ? '<span class="day-phase-est">estimasi</span>' : ''}
     </div>
   ` : '';
+
+  // Big probability block for prob days
+  let probBlock = '';
+  if(status.type === 'prob'){
+    probBlock = `
+      <div class="day-prob-block" style="--t:${status.tier.color};--tbg:${status.tier.bg};--ttext:${status.tier.text}">
+        <div class="day-prob-label">Perkiraan kemungkinan hamil${status.isPredicted ? ' (prediksi)' : ''}</div>
+        <div class="day-prob-value">${fmtProb(status.prob)}</div>
+        <div class="day-prob-tier">${status.tier.label} · dari satu kali hubungan tanpa kondom</div>
+      </div>`;
+  } else {
+    probBlock = `<div class="day-status-pill ${status.type === 'period' ? 'period' : 'unknown'}"><span class="swatch"></span>${status.label}</div>`;
+  }
+
   modal.innerHTML = `
     <div class="modal-overlay" data-close-modal>
       <div class="modal" onclick="event.stopPropagation()">
         <div class="modal-handle"></div>
         <div class="modal-title">${fmtDateLong(dateStr)}</div>
         <div class="modal-subtitle">${dateStr === todayStr() ? 'Hari ini' : ''}</div>
-        <div class="day-status-pill ${status.type}">
-          <span class="swatch"></span>${status.label}
-        </div>
+        ${probBlock}
         ${phaseHtml}
-        ${status.dayInCycle ? `<div class="text-muted" style="font-size:13px;margin-top:4px">Hari ke-${status.dayInCycle} dalam siklus</div>` : ''}
+        ${status.dayInCycle ? `<div class="text-muted" style="font-size:13px;margin-top:8px">Hari ke-${status.dayInCycle} dalam siklus</div>` : ''}
         ${getDayAdvice(status)}
         <div class="mt-3">
           <button class="btn btn-secondary btn-block" data-close-modal>Tutup</button>
@@ -1874,16 +1985,27 @@ function showDayModal(dateStr){
 }
 
 function getDayAdvice(status){
-  const advice = {
-    'period': {cls:'banner-info', txt:'Hari haid aktual berdasarkan data yang Anda catat.'},
-    'fertile': {cls:'banner-danger', txt:'Masa subur. Risiko kehamilan TINGGI bila berhubungan tanpa pengaman. Hindari, atau gunakan kondom.'},
-    'safe-pre': {cls:'banner-warning', txt:'Hari sebelum masa subur. KURANG AMAN — pada siklus yang lebih pendek dari rata-rata, ovulasi bisa datang lebih awal dan sperma dapat bertahan hingga 5 hari. Tidak dijamin aman.'},
-    'safe-post': {cls:'banner-success', txt:'Hari setelah masa subur — kategori paling andal di antara hari aman. Namun ini tetap estimasi: metode kalender tidak bisa memastikan ovulasi sudah lewat.'},
-    'predicted-period': {cls:'banner-info', txt:'Prediksi tanggal haid berikutnya berdasarkan rata-rata siklus Anda.'},
-    'unknown': {cls:'banner-info', txt:'Belum cukup data untuk menentukan status hari ini.'}
+  if(status.type === 'period'){
+    return `<div class="banner banner-info mt-2"><div>Hari haid aktual berdasarkan data Anda. Kesuburan umumnya rendah saat haid, namun pada siklus pendek dapat tidak nol.</div></div>`;
+  }
+  if(status.type === 'predicted-period'){
+    return `<div class="banner banner-info mt-2"><div>Perkiraan hari haid berikutnya berdasarkan rata-rata siklus Anda.</div></div>`;
+  }
+  if(status.type !== 'prob'){
+    return `<div class="banner banner-info mt-2"><div>Belum cukup data untuk mengestimasi hari ini (perlu ≥3 siklus tercatat).</div></div>`;
+  }
+  // Probability day — advice scales with tier
+  const t = status.tier.key;
+  const map = {
+    vlow:  {cls:'banner-success', txt:'Kemungkinan hamil sangat rendah, namun TIDAK nol — tidak ada hari yang benar-benar tanpa risiko dengan metode kalender.'},
+    low:   {cls:'banner-success', txt:'Kemungkinan rendah, tetapi tetap ada. Pada siklus tidak teratur, ovulasi bisa bergeser ke hari ini.'},
+    med:   {cls:'banner-warning', txt:'Risiko sedang. Sebaiknya gunakan kondom bila ingin mencegah kehamilan.'},
+    high:  {cls:'banner-warning', txt:'Risiko tinggi. Hindari hubungan tanpa pengaman bila tidak menginginkan kehamilan.'},
+    vhigh: {cls:'banner-danger',  txt:'Risiko sangat tinggi — mendekati puncak masa subur. Hindari, atau gunakan kondom.'}
   };
-  const a = advice[status.type] || advice['unknown'];
-  return `<div class="banner ${a.cls} mt-2"><div>${a.txt}</div></div>`;
+  const a = map[t] || map.med;
+  const uncertainty = `<br><span style="opacity:0.85;font-size:12px">Angka adalah perkiraan dari pola siklus Anda dan dapat meleset; semakin tidak teratur siklus, semakin besar ketidakpastiannya.</span>`;
+  return `<div class="banner ${a.cls} mt-2"><div>${a.txt}${uncertainty}</div></div>`;
 }
 
 function showEditCycleModal(id){
