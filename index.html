@@ -288,6 +288,27 @@ input[type="date"]{font-family:var(--font-body)}
 .phase-legend-item{display:flex;align-items:center;gap:7px}
 .phase-legend-strip{width:16px;height:4px;border-radius:2px;flex-shrink:0}
 
+/* Calculation explanation (Statistik) */
+.calc-step{
+  display:flex;gap:11px;align-items:flex-start;
+  font-size:13px;line-height:1.55;color:var(--text-muted);
+  margin-top:12px;
+}
+.calc-num{
+  width:24px;height:24px;border-radius:50%;
+  background:var(--primary);color:white;
+  font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+.calc-formula{
+  background:var(--primary-faint);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;margin-top:14px;
+  font-size:13px;color:var(--primary-dark);font-weight:600;
+  text-align:center;line-height:1.5;
+}
+.calc-formula sub{font-size:10px}
+
 /* Day detail modal */
 .modal-overlay{
   position:fixed;inset:0;
@@ -1589,6 +1610,57 @@ function renderStatistikView(){
           <div class="stat-label">Estimasi luteal</div>
           <div class="stat-value">~${stats.lutealEstimate}<span class="stat-unit">hari</span></div>
           <div class="stat-detail">perkiraan standar</div>
+        </div>
+      </div>
+
+      <div class="card mt-2">
+        <div class="card-title" style="font-size:16px">Bagaimana persentase kehamilan dihitung</div>
+        ${(() => {
+          const dist = getOvulationDistribution();
+          if(!dist){
+            return `<div style="font-size:13px;line-height:1.6;color:var(--text-muted)">Perlu minimal 3 siklus tercatat agar persentase dapat dihitung.</div>`;
+          }
+          let peakProb = 0, peakDay = 0;
+          for(let d = 1; d <= stats.avgRound + 12; d++){
+            const p = getConceptionProb(d);
+            if(p > peakProb){ peakProb = p; peakDay = d; }
+          }
+          return `
+          <div style="font-size:13px;line-height:1.6;color:var(--text-muted)">
+            Tiap hari menampilkan perkiraan peluang hamil dari <strong>satu kali</strong> hubungan tanpa kondom. Dihitung dalam 3 langkah:
+          </div>
+          <div class="calc-step">
+            <div class="calc-num">1</div>
+            <div><strong style="color:var(--primary-dark)">Data dasar (Wilcox, NEJM 1995).</strong> Peluang konsepsi per hubungan menurut jarak ke hari ovulasi: dari ~10% (5 hari sebelum) hingga ~33% (hari ovulasi). Di luar jendela 6 hari ini ≈ 0%.</div>
+          </div>
+          <div class="calc-step">
+            <div class="calc-num">2</div>
+            <div><strong style="color:var(--primary-dark)">Sebaran ovulasi Anda.</strong> Kalender tidak bisa memastikan hari ovulasi, jadi app memperkirakan sebarannya dari pola siklus Anda: ovulasi ≈ panjang siklus − 14. Untuk Anda, ovulasi diperkirakan sekitar <strong>hari ke-${Math.round(dist.ovMean)} ± ${dist.ovSd.toFixed(1)} hari</strong>.</div>
+          </div>
+          <div class="calc-step">
+            <div class="calc-num">3</div>
+            <div><strong style="color:var(--primary-dark)">Penggabungan.</strong> Untuk tiap hari, peluang Wilcox dijumlahkan terhadap semua kemungkinan hari ovulasi, ditimbang probabilitasnya.</div>
+          </div>
+          <div class="calc-formula">P(hamil | hari‑d) = Σ<sub>k</sub> P(ovulasi = k) × Wilcox(d − k)</div>
+          <div style="font-size:13px;line-height:1.6;color:var(--text-muted);margin-top:12px">
+            <strong style="color:var(--primary-dark)">Akibat dari variasi siklus Anda:</strong><br>
+            Karena sebaran ovulasi Anda lebar (±${dist.ovSd.toFixed(1)} hari), risiko "menyebar" ke banyak hari. Puncak tertinggi hanya sekitar <strong style="color:var(--fertile-dark)">${fmtProb(peakProb)} di hari ke-${peakDay}</strong>. Pada siklus yang sangat teratur, puncak bisa setajam ~25–33% dengan hari aman yang jelas — sebaran lebar justru menandakan tidak ada hari yang benar-benar bebas risiko.
+          </div>
+          <div class="banner banner-info" style="margin-top:12px;font-size:12px">
+            <div>Catatan: angka ini untuk <strong>satu kali</strong> hubungan. Risiko kumulatif dari beberapa kali hubungan jauh lebih tinggi. Angka Wilcox berasal dari pasangan subur sehat, sehingga cenderung perkiraan batas atas.</div>
+          </div>`;
+        })()}
+      </div>
+
+      <div class="card mt-2">
+        <div class="card-title" style="font-size:16px">Apakah app menyesuaikan otomatis?</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text-muted)">
+          <strong style="color:var(--safe)">Ya, sepenuhnya otomatis.</strong> Setiap kali Anda mencatat haid baru — bahkan bila melenceng dari prediksi — app langsung:
+          <br>• Menggeser kalender ke tanggal haid aktual (prediksi diganti data nyata)
+          <br>• Menghitung ulang rata-rata, variasi, dan sebaran ovulasi
+          <br>• Memperbarui persentase kehamilan dan fase tiap hari
+          <br><br>
+          <span style="font-size:12px">Catatan jujur: persentase untuk siklus berjalan adalah <em>prediksi</em> dari riwayat Anda — app belum tahu kapan ovulasi siklus ini benar-benar terjadi sampai haid berikutnya tercatat. Semakin tidak teratur catatan, semakin lebar sebaran dan semakin besar ketidakpastiannya.</span>
         </div>
       </div>
 
