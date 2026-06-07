@@ -233,16 +233,23 @@ input[type="date"]{font-family:var(--font-body)}
   font-size:14px;font-weight:500;
   border-radius:10px;
   position:relative;
+  overflow:hidden;
   transition:transform 0.1s;
   background:transparent;
   border:1.5px solid transparent;
+  padding-bottom:3px;
 }
 .cal-day{line-height:1.1}
 .cal-pct{font-size:9px;font-weight:700;line-height:1;margin-top:1px;opacity:0.95}
+.cal-phase-strip{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:3.5px;
+}
 .cal-cell:not(.empty):active{transform:scale(0.92)}
 .cal-cell.empty{visibility:hidden}
 .cal-cell.today{font-weight:700}
-.cal-cell.today{box-shadow:0 0 0 2px var(--primary)}
+.cal-cell.today{box-shadow:inset 0 0 0 2px var(--primary)}
 .cal-cell.period{background:var(--period);color:white}
 .cal-cell.tier-vlow{background:#D1FAE5;color:#065F46}
 .cal-cell.tier-low{background:#ECFCCB;color:#3F6212}
@@ -271,6 +278,15 @@ input[type="date"]{font-family:var(--font-body)}
   font-size:11px;color:var(--text-muted);line-height:1.45;
   margin-top:12px;padding-top:12px;border-top:1px solid var(--border-soft);
 }
+.phase-legend-title{
+  font-size:11px;font-weight:600;color:var(--text-muted);
+  margin-top:12px;margin-bottom:8px;letter-spacing:0.02em;
+}
+.phase-legend{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;
+}
+.phase-legend-item{display:flex;align-items:center;gap:7px}
+.phase-legend-strip{width:16px;height:4px;border-radius:2px;flex-shrink:0}
 
 /* Day detail modal */
 .modal-overlay{
